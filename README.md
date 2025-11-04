@@ -2,7 +2,7 @@
 
 A complete, production-ready OAuth 2.0 backend for HubSpot apps built on Supabase. Deploy in minutes with automatic token refresh, secure storage, and a ready-to-use API client.
 
-[![Deploy with Supabase](https://pipedream.com/s.v0/app_1dBhP3/logo/96)](https://supabase.com/dashboard/new)
+[Deploy with Supabase](https://supabase.com/dashboard/new)
 
 ## ✨ Features
 
