@@ -1,5 +1,36 @@
 # Usage Examples
 
+## OAuth Flow (Following HubSpot Quickstart Pattern)
+
+This template follows the same OAuth flow as the [HubSpot OAuth quickstart](https://github.com/HubSpot/oauth-quickstart-nodejs):
+
+### 1. Start OAuth Installation
+```
+GET /oauth-install
+```
+Redirects user to HubSpot's authorization page.
+
+### 2. Handle OAuth Callback
+```
+GET /oauth-callback?code=xxx
+```
+- Exchanges authorization code for tokens
+- Stores tokens in database
+- Redirects to home page
+
+### 3. Display Success Page
+```
+GET /index?portal_id=123
+```
+- Fetches a contact from HubSpot
+- Displays contact information
+- Shows the OAuth was successful
+
+This matches the quickstart flow where:
+1. User visits `/install` → redirects to HubSpot
+2. After auth → callback exchanges code and redirects to home
+3. Home page shows actual HubSpot data (contact)
+
 ## Basic API Call
 
 ```typescript
@@ -70,7 +101,7 @@ import { HubSpotClient } from '../_shared/hubspot-client.ts';
 
 serve(async (req: Request) => {
   const { portal_id } = await req.json();
-  
+
   const hubspot = new HubSpotClient({
     supabaseUrl: Deno.env.get('SUPABASE_URL')!,
     supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -79,9 +110,9 @@ serve(async (req: Request) => {
 
   // Your sync logic here
   const contacts = await hubspot.get('/crm/v3/objects/contacts?limit=100');
-  
+
   // Process contacts...
-  
+
   return new Response(JSON.stringify({ synced: contacts.results.length }));
 });
 ```

@@ -2,6 +2,8 @@
 
 A complete, production-ready OAuth 2.0 backend for HubSpot apps built on Supabase. Deploy in minutes with automatic token refresh, secure storage, and a ready-to-use API client.
 
+Based on the [HubSpot OAuth Quickstart](https://github.com/HubSpot/oauth-quickstart-nodejs) flow, but optimized for Supabase Edge Functions.
+
 [Deploy with Supabase](https://supabase.com/dashboard/new)
 
 ## ✨ Features
@@ -23,7 +25,8 @@ A complete, production-ready OAuth 2.0 backend for HubSpot apps built on Supabas
 
 ### Edge Functions
 - **oauth-install** - Initiates OAuth flow, redirects to HubSpot
-- **oauth-callback** - Handles redirect, exchanges code for tokens
+- **oauth-callback** - Handles redirect, exchanges code for tokens, redirects to home
+- **index** - Home page that displays contact data after successful OAuth
 - **oauth-refresh** - Automatically refreshes expired tokens
 - **example-api** - Demonstrates authenticated HubSpot API calls
 
@@ -31,6 +34,14 @@ A complete, production-ready OAuth 2.0 backend for HubSpot apps built on Supabas
 - **HubSpotClient** - Reusable client with automatic token refresh
 - Pre-configured CORS and error handling
 - Comprehensive logging for debugging
+
+## 🔄 OAuth Flow (like HubSpot Quickstart)
+
+1. **User visits `/oauth-install`** → Redirects to HubSpot authorization page
+2. **User authorizes app** → HubSpot redirects to `/oauth-callback` with code
+3. **App exchanges code for tokens** → Stores in database
+4. **App redirects to `/index`** → Displays contact data from HubSpot
+5. **All API calls auto-refresh tokens** → Never worry about expired tokens
 
 ## 🚀 Quick Start (5 Minutes)
 
@@ -95,6 +106,7 @@ supabase secrets set SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 ```bash
 supabase functions deploy oauth-install
 supabase functions deploy oauth-callback
+supabase functions deploy index
 supabase functions deploy oauth-refresh
 supabase functions deploy example-api
 ```
@@ -106,11 +118,15 @@ Open this URL in your browser:
 https://your-project-ref.supabase.co/functions/v1/oauth-install
 ```
 
-You should:
-1. Be redirected to HubSpot
-2. See authorization screen
-3. After authorizing, see success page with your Portal ID
-4. See tokens stored in your Supabase database
+**What happens next (just like the HubSpot quickstart):**
+
+1. ✅ You're redirected to HubSpot's authorization page
+2. ✅ You choose an account and grant permissions
+3. ✅ HubSpot redirects back to your app
+4. ✅ App exchanges code for tokens and stores them
+5. ✅ **You're redirected to a home page showing a contact from your HubSpot account!**
+
+This flow matches the [HubSpot OAuth quickstart](https://github.com/HubSpot/oauth-quickstart-nodejs) but runs on Supabase Edge Functions.
 
 ## 📖 Usage
 
@@ -202,6 +218,8 @@ const portalId = await getUserPortalId(userId);
 │   │   │   └── index.ts
 │   │   ├── oauth-callback/         # Handle OAuth redirect
 │   │   │   └── index.ts
+│   │   ├── index/                  # Home page (shows contact after OAuth)
+│   │   │   └── index.ts
 │   │   ├── oauth-refresh/          # Refresh expired tokens
 │   │   │   └── index.ts
 │   │   ├── example-api/            # Example authenticated call
@@ -214,6 +232,31 @@ const portalId = await getUserPortalId(userId);
 ├── .env.example                    # Environment variable template
 ├── package.json                    # Helper scripts
 └── README.md                       # This file
+```
+
+### Function Flow
+
+```
+┌─────────────┐
+│ oauth-      │  1. User clicks "Install"
+│ install     ├──────────────────────────────────┐
+└─────────────┘                                  │
+                                                 ▼
+                                          ┌─────────────┐
+                                          │  HubSpot    │
+                                          │  OAuth      │
+                                          │  Page       │
+                                          └──────┬──────┘
+                                                 │ 2. User authorizes
+                                                 ▼
+┌─────────────┐                          ┌─────────────┐
+│ index       │  4. Displays contact     │ oauth-      │  3. Exchanges code
+│ (home page) │◄─────────────────────────┤ callback    │     for tokens
+└─────────────┘                          └─────────────┘
+
+┌─────────────┐
+│ example-api │  Use anytime to call HubSpot APIs
+└─────────────┘  (tokens auto-refresh!)
 ```
 
 ## 🔒 Security Best Practices
@@ -316,6 +359,7 @@ supabase db remote --table oauth_tokens
 
 ## 📚 Resources
 
+- [HubSpot OAuth Quickstart](https://github.com/HubSpot/oauth-quickstart-nodejs) - Original quickstart this is based on
 - [HubSpot OAuth Documentation](https://developers.hubspot.com/docs/apps/developer-platform/build-apps/authentication/oauth/working-with-oauth)
 - [Supabase Edge Functions Guide](https://supabase.com/docs/guides/functions)
 - [HubSpot API Reference](https://developers.hubspot.com/docs/api/overview)
