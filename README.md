@@ -218,11 +218,11 @@ const portalId = await getUserPortalId(userId);
 
 ## 🔒 Security Best Practices
 
-✅ **Never commit secrets** - Use environment variables
-✅ **Service role key** - Only used in Edge Functions, never client-side
-✅ **RLS enabled** - Database access restricted to service role
-✅ **HTTPS only** - All OAuth redirects require HTTPS
-✅ **State parameter** - CSRF protection (enhance in production)
+✅ **Never commit secrets** - Use environment variables\
+✅ **Service role key** - Only used in Edge Functions, never client-side\
+✅ **RLS enabled** - Database access restricted to service role\
+✅ **HTTPS only** - All OAuth redirects require HTTPS\
+✅ **State parameter** - CSRF protection (enhance in production)\
 ✅ **Token rotation** - Tokens automatically refresh before expiration
 
 ## 🔧 Configuration
@@ -342,23 +342,6 @@ Contributions welcome! Please:
 2. Create a feature branch
 3. Make your changes
 4. Submit a pull request
-
-## 📄 License
-
-MIT License - feel free to use for personal or commercial projects.
-
-## 🙏 Credits
-
-Built with:
-- [Supabase](https://supabase.com) - Backend platform
-- [Deno](https://deno.land) - Edge runtime
-- [HubSpot](https://hubspot.com) - CRM platform
-
-## 💬 Support
-
-- 🐛 [Report Issues](https://github.com/yourusername/repo/issues)
-- 💡 [Request Features](https://github.com/yourusername/repo/issues)
-- 📧 [Email Support](mailto:your@email.com)
 
 ## ⭐ Show Your Support
 
