@@ -1,7 +1,3 @@
-// OAuth Callback Endpoint
-// Handles the redirect from HubSpot after user authorization
-// Exchanges authorization code for access/refresh tokens
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -9,17 +5,12 @@ serve(async (req: Request) => {
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get('code');
-    const state = url.searchParams.get('state');
     const error = url.searchParams.get('error');
 
-    // Check for OAuth errors
     if (error) {
       return new Response(
         `OAuth Error: ${error}\n${url.searchParams.get('error_description') || ''}`,
-        {
-          status: 400,
-          headers: { 'Content-Type': 'text/plain' }
-        }
+        { status: 400, headers: { 'Content-Type': 'text/plain' }}
       );
     }
 
@@ -27,12 +18,6 @@ serve(async (req: Request) => {
       return new Response('No authorization code provided', { status: 400 });
     }
 
-    // Validate state parameter (implement CSRF protection in production)
-    // if (!isValidState(state)) {
-    //   return new Response('Invalid state parameter', { status: 400 });
-    // }
-
-    // Get environment variables
     const CLIENT_ID = Deno.env.get('HUBSPOT_CLIENT_ID');
     const CLIENT_SECRET = Deno.env.get('HUBSPOT_CLIENT_SECRET');
     const REDIRECT_URI = Deno.env.get('HUBSPOT_REDIRECT_URI');
@@ -42,8 +27,6 @@ serve(async (req: Request) => {
     if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       return new Response('Missing required environment variables', { status: 500 });
     }
-
-    // Exchange authorization code for tokens
     const tokenResponse = await fetch('https://api.hubapi.com/oauth/v1/token', {
       method: 'POST',
       headers: {
@@ -67,10 +50,7 @@ serve(async (req: Request) => {
     const tokenData = await tokenResponse.json();
     const { access_token, refresh_token, expires_in } = tokenData;
 
-    // Get portal ID from OAuth token info endpoint (most reliable method)
-    const tokenInfoResponse = await fetch(`https://api.hubapi.com/oauth/v1/access-tokens/${access_token}`, {
-      method: 'GET',
-    });
+    const tokenInfoResponse = await fetch(`https://api.hubapi.com/oauth/v1/access-tokens/${access_token}`);
 
     if (!tokenInfoResponse.ok) {
       const errorText = await tokenInfoResponse.text();
@@ -86,10 +66,7 @@ serve(async (req: Request) => {
       return new Response('Failed to extract portal ID from token', { status: 500 });
     }
 
-    // Calculate token expiration time
     const expires_at = new Date(Date.now() + expires_in * 1000);
-
-    // Store tokens in Supabase
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const { data, error: dbError } = await supabase
@@ -109,15 +86,61 @@ serve(async (req: Request) => {
       return new Response(`Failed to store tokens: ${dbError.message}`, { status: 500 });
     }
 
-    // Redirect to home page with portal_id (like the quickstart does)
-    // This allows the home page to fetch and display actual HubSpot data
-    const homeUrl = new URL('/functions/v1/index', SUPABASE_URL);
-    homeUrl.searchParams.set('portal_id', portal_id.toString());
+    const successMessage = `
+✅ OAuth Installation Successful!
 
-    return new Response(null, {
-      status: 302,
+Your HubSpot app has been successfully connected.
+
+Portal ID: ${portal_id}
+Scopes: ${tokenData.scopes ? tokenData.scopes.join(', ') : 'N/A'}
+Status: Tokens securely stored
+
+You can now close this page.
+
+---
+
+🎨 Want to Customize This Success Page?
+
+You have several options:
+
+1. EDIT THIS MESSAGE
+   • Open: supabase/functions/oauth-callback/index.ts
+   • Modify the 'successMessage' variable
+   • Redeploy: supabase functions deploy oauth-callback
+
+2. REDIRECT TO YOUR APP
+   • Replace the success message with a redirect:
+   • return new Response(null, {
+       status: 302,
+       headers: { 'Location': 'https://yourapp.com/success?portal_id=' + portal_id }
+     });
+
+3. CREATE A CUSTOM HTML PAGE
+   • Build your own success page and host it on:
+     - Vercel: https://vercel.com (free)
+     - Netlify: https://netlify.com (free)
+     - GitHub Pages: https://pages.github.com (free)
+   • Then redirect to it (see option 2)
+
+4. USE A CUSTOM DOMAIN (Supabase Pro)
+   • Custom domains allow serving HTML directly from Edge Functions
+   • Learn more: https://supabase.com/docs/guides/platform/custom-domains
+
+---
+
+📖 Next Steps - Using Your OAuth Integration:
+
+• Test API call: /functions/v1/example-api?portal_id=${portal_id}
+• Read the docs: Check README.md for code examples
+• HubSpot API reference: https://developers.hubspot.com/docs/api/overview
+
+Your tokens are securely stored and will auto-refresh. Happy coding! 🚀
+    `.trim();
+
+    return new Response(successMessage, {
+      status: 200,
       headers: {
-        'Location': homeUrl.toString(),
+        'Content-Type': 'text/plain; charset=utf-8',
       }
     });
 

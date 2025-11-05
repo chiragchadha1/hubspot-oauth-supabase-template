@@ -14,7 +14,39 @@ Based on the [HubSpot OAuth Quickstart](https://github.com/HubSpot/oauth-quickst
 - ✅ **Edge Functions** - Fast, globally distributed serverless functions
 - ✅ **TypeScript Ready** - Fully typed API client included
 - ✅ **Production Ready** - Error handling, logging, and best practices built-in
+- ✅ **Self-Documenting** - Success page teaches users how to customize it
 - ✅ **100% Free Tier Compatible** - Works perfectly on Supabase free plan
+
+## 🏗️ Architecture
+
+This is an **OAuth backend** that handles authentication and token management for your HubSpot app. It works alongside your HubSpot project:
+
+```
+┌─────────────────────┐         ┌──────────────────────┐
+│  HubSpot Project    │         │  OAuth Backend       │
+│  (hs project)       │◄────────│  (This repo)         │
+├─────────────────────┤         ├──────────────────────┤
+│ • App metadata      │         │ • Token exchange     │
+│ • UI extensions     │         │ • Token storage      │
+│ • Serverless fns    │         │ • Token refresh      │
+│ • Cards, workflows  │         │ • API wrapper        │
+│ • Redirect URI      │         │ • Database           │
+└─────────────────────┘         └──────────────────────┘
+        ↓                                ↑
+        └────── OAuth flow ──────────────┘
+```
+
+**Your HubSpot Project** (`hs project create`):
+- Defines your app in `app.hsmeta.json`
+- Contains UI extensions, cards, serverless functions
+- **Sets the redirect URI** that points to this backend
+- Deployed to HubSpot's platform
+
+**This OAuth Backend** (Supabase):
+- Handles OAuth callbacks from HubSpot
+- Exchanges authorization codes for tokens
+- Stores and refreshes tokens automatically
+- Provides `HubSpotClient` for making API calls
 
 ## 🎯 What's Included
 
@@ -25,8 +57,8 @@ Based on the [HubSpot OAuth Quickstart](https://github.com/HubSpot/oauth-quickst
 
 ### Edge Functions
 - **oauth-install** - Initiates OAuth flow, redirects to HubSpot
-- **oauth-callback** - Handles redirect, exchanges code for tokens, redirects to home
-- **index** - Home page that displays contact data after successful OAuth
+- **oauth-callback** - Handles redirect, exchanges code for tokens, shows simple success message
+- **index** - Returns portal info and contact data as JSON
 - **oauth-refresh** - Automatically refreshes expired tokens
 - **example-api** - Demonstrates authenticated HubSpot API calls
 
@@ -35,179 +67,155 @@ Based on the [HubSpot OAuth Quickstart](https://github.com/HubSpot/oauth-quickst
 - Pre-configured CORS and error handling
 - Comprehensive logging for debugging
 
-## 🔄 OAuth Flow (like HubSpot Quickstart)
+## 🔄 OAuth Flow (Simplified)
 
 1. **User visits `/oauth-install`** → Redirects to HubSpot authorization page
 2. **User authorizes app** → HubSpot redirects to `/oauth-callback` with code
 3. **App exchanges code for tokens** → Stores in database
-4. **App redirects to `/index`** → Displays contact data from HubSpot
+4. **Shows success message** → User can close the page
 5. **All API calls auto-refresh tokens** → Never worry about expired tokens
 
-## 🚀 Quick Start (5 Minutes)
+## 🚀 Quick Start
 
 ### Prerequisites
 - [Supabase account](https://supabase.com) (free)
 - [HubSpot developer account](https://developers.hubspot.com)
-- [Supabase CLI](https://supabase.com/docs/guides/cli) installed
+- [Supabase CLI](https://supabase.com/docs/guides/cli)
 
-### 1. Clone This Template
+### 1. Clone & Link
 
 ```bash
 git clone https://github.com/yourusername/hubspot-oauth-supabase-template.git
 cd hubspot-oauth-supabase-template
-```
-
-### 2. Create Supabase Project
-
-1. Go to https://supabase.com/dashboard
-2. Click "New Project"
-3. Note your **Project Reference ID** and **API Keys**
-
-### 3. Link to Your Project
-
-```bash
 supabase login
-supabase link --project-ref your-project-ref
+supabase link
 ```
 
-### 4. Deploy Database Schema
+### 2. Deploy Database
 
 ```bash
 supabase db push
 ```
 
-This creates the `oauth_tokens` table.
+### 3. Create HubSpot Project
 
-### 5. Get HubSpot Credentials
+Create your HubSpot app project:
 
-1. Go to https://developers.hubspot.com
-2. Create or select your app
-3. Go to **Auth** tab
-4. Copy your **Client ID** and **Client Secret**
-5. Set **Redirect URL** to: `https://your-project-ref.supabase.co/functions/v1/oauth-callback`
+```bash
+# Install HubSpot CLI
+npm install -g @hubspot/cli
 
-### 6. Configure Environment Variables
+# Create project
+hs project create
 
-Set these secrets in Supabase:
+# Select your options:
+# - Project base: app
+# - Features: (choose what you need)
+# - Auth: oauth (required for this backend)
+# - Distribution: private or marketplace
+```
+
+This creates your HubSpot project with an `app.hsmeta.json` file.
+
+### 4. Configure Redirect URI
+
+In your HubSpot project's `app.hsmeta.json`, set the redirect URI:
+
+```json
+{
+  "name": "Your App Name",
+  "auth": {
+    "redirectUrls": [
+      "https://your-project-ref.supabase.co/functions/v1/oauth-callback"
+    ]
+  }
+}
+```
+
+Deploy your HubSpot project:
+```bash
+hs project upload
+```
+
+> **Note:** The redirect URI must be set in your HubSpot project's metadata file and deployed to HubSpot. You cannot change it in the HubSpot UI after creation - it must be updated in the file and re-deployed.
+
+### 5. Get App Credentials
+
+After deploying your HubSpot project:
+1. Visit [developers.hubspot.com](https://developers.hubspot.com)
+2. Find your app and go to the **Auth** tab
+3. Copy your **Client ID** and **Client Secret**
+
+### 6. Set Backend Secrets
+
+Via CLI or Dashboard (Edge Functions → Secrets):
 
 ```bash
 supabase secrets set HUBSPOT_CLIENT_ID="your-client-id"
 supabase secrets set HUBSPOT_CLIENT_SECRET="your-client-secret"
 supabase secrets set HUBSPOT_REDIRECT_URI="https://your-project-ref.supabase.co/functions/v1/oauth-callback"
-supabase secrets set SUPABASE_URL="https://your-project-ref.supabase.co"
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 ```
 
-**Get your service role key:**
-- Supabase Dashboard → Settings → API → `service_role` (secret)
+> **Note:** `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are automatically set by Supabase.
 
 ### 7. Deploy Functions
 
 ```bash
-supabase functions deploy oauth-install
-supabase functions deploy oauth-callback
-supabase functions deploy index
-supabase functions deploy oauth-refresh
-supabase functions deploy example-api
+supabase functions deploy
 ```
 
-### 8. Test Your Setup! 🎉
+### 8. Test! 🎉
 
-Open this URL in your browser:
-```
-https://your-project-ref.supabase.co/functions/v1/oauth-install
-```
+Visit: `https://your-project-ref.supabase.co/functions/v1/oauth-install`
 
-**What happens next (just like the HubSpot quickstart):**
+You'll see a self-documenting success page with your Portal ID, scopes, and customization instructions.
 
-1. ✅ You're redirected to HubSpot's authorization page
-2. ✅ You choose an account and grant permissions
-3. ✅ HubSpot redirects back to your app
-4. ✅ App exchanges code for tokens and stores them
-5. ✅ **You're redirected to a home page showing a contact from your HubSpot account!**
+## 🔄 How It Works
 
-This flow matches the [HubSpot OAuth quickstart](https://github.com/HubSpot/oauth-quickstart-nodejs) but runs on Supabase Edge Functions.
+1. **User installs your app** → Redirected to HubSpot OAuth page
+2. **User authorizes** → HubSpot redirects to your Supabase callback URL
+3. **Backend exchanges code for tokens** → Stores in database
+4. **Your HubSpot project uses tokens** → Makes API calls via this backend
+
+Your HubSpot project (cards, workflows, functions) can call the `example-api` endpoint with a `portal_id` to make authenticated requests to HubSpot APIs. The tokens are automatically refreshed when needed.
+
+Based on the [HubSpot OAuth Quickstart](https://github.com/HubSpot/oauth-quickstart-nodejs).
 
 ## 📖 Usage
 
-### Making Authenticated API Calls
+### From Your HubSpot Project
 
-Use the included `HubSpotClient` in your Edge Functions:
+Call the example API from your HubSpot serverless functions or UI extensions:
+
+```javascript
+// In your HubSpot project's serverless function
+const response = await fetch(
+  'https://your-project-ref.supabase.co/functions/v1/example-api?portal_id=' + portalId
+);
+const data = await response.json();
+```
+
+### From This Backend (Custom Endpoints)
+
+Create custom Edge Functions that use the `HubSpotClient`:
 
 ```typescript
 import { HubSpotClient } from '../_shared/hubspot-client.ts';
 
-// Initialize client
 const hubspot = new HubSpotClient({
   supabaseUrl: Deno.env.get('SUPABASE_URL')!,
   supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   portalId: YOUR_PORTAL_ID,
 });
 
-// Make API calls - tokens refresh automatically!
-const contacts = await hubspot.get('/crm/v3/objects/contacts?limit=10');
-const companies = await hubspot.get('/crm/v3/objects/companies');
-
-// Create a contact
-const newContact = await hubspot.post('/crm/v3/objects/contacts', {
-  properties: {
-    firstname: 'John',
-    lastname: 'Doe',
-    email: 'john@example.com'
-  }
-});
-
-// Update a contact
-await hubspot.patch('/crm/v3/objects/contacts/123', {
-  properties: { phone: '555-1234' }
-});
-
-// Delete a contact
+// Tokens refresh automatically!
+const contacts = await hubspot.get('/crm/v3/objects/contacts');
+await hubspot.post('/crm/v3/objects/contacts', { properties: {...} });
+await hubspot.patch('/crm/v3/objects/contacts/123', { properties: {...} });
 await hubspot.delete('/crm/v3/objects/contacts/123');
 ```
 
-### Example: Create a Custom API Endpoint
-
-```typescript
-// supabase/functions/my-endpoint/index.ts
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { HubSpotClient } from '../_shared/hubspot-client.ts';
-
-serve(async (req: Request) => {
-  const url = new URL(req.url);
-  const portalId = parseInt(url.searchParams.get('portal_id') || '');
-
-  const hubspot = new HubSpotClient({
-    supabaseUrl: Deno.env.get('SUPABASE_URL')!,
-    supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    portalId,
-  });
-
-  // Your logic here
-  const data = await hubspot.get('/crm/v3/objects/contacts');
-
-  return new Response(JSON.stringify(data), {
-    headers: { 'Content-Type': 'application/json' }
-  });
-});
-```
-
-Deploy it:
-```bash
-supabase functions deploy my-endpoint
-```
-
-### Getting Portal ID from Request
-
-If users install your app, extract portal ID from the context:
-
-```typescript
-// From HubSpot CRM card request
-const portalId = req.headers.get('X-HubSpot-Portal-Id');
-
-// Or from your own database/session
-const portalId = await getUserPortalId(userId);
-```
+See `example-api/index.ts` for a full working example.
 
 ## 🏗️ Project Structure
 
@@ -216,9 +224,9 @@ const portalId = await getUserPortalId(userId);
 │   ├── functions/
 │   │   ├── oauth-install/          # Start OAuth flow
 │   │   │   └── index.ts
-│   │   ├── oauth-callback/         # Handle OAuth redirect
+│   │   ├── oauth-callback/         # Handle OAuth redirect, show success
 │   │   │   └── index.ts
-│   │   ├── index/                  # Home page (shows contact after OAuth)
+│   │   ├── index/                  # Returns portal info as JSON
 │   │   │   └── index.ts
 │   │   ├── oauth-refresh/          # Refresh expired tokens
 │   │   │   └── index.ts
@@ -249,10 +257,20 @@ const portalId = await getUserPortalId(userId);
                                           └──────┬──────┘
                                                  │ 2. User authorizes
                                                  ▼
-┌─────────────┐                          ┌─────────────┐
-│ index       │  4. Displays contact     │ oauth-      │  3. Exchanges code
-│ (home page) │◄─────────────────────────┤ callback    │     for tokens
-└─────────────┘                          └─────────────┘
+                                          ┌─────────────┐
+                                          │ oauth-      │  3. Exchanges code
+                                          │ callback    │     for tokens
+                                          └──────┬──────┘
+                                                 │ 4. Shows success
+                                                 ▼
+                                          ┌─────────────┐
+                                          │ ✅ Success! │
+                                          │ Close page  │
+                                          └─────────────┘
+
+┌─────────────┐
+│ index       │  (Optional) Query portal info as JSON
+└─────────────┘
 
 ┌─────────────┐
 │ example-api │  Use anytime to call HubSpot APIs
@@ -270,128 +288,63 @@ const portalId = await getUserPortalId(userId);
 
 ## 🔧 Configuration
 
-### Required Scopes
+### Add More Scopes
 
-Default scopes in this template:
-- `oauth` - Required for OAuth flow
-- `crm.objects.contacts.read` - Read contacts
-- `crm.objects.contacts.write` - Write contacts
+Edit `oauth-install/index.ts`, update `SCOPES` array, then redeploy.
 
-**To add more scopes:**
-1. Edit `supabase/functions/oauth-install/index.ts`
-2. Update `SCOPES` array
-3. Redeploy: `supabase functions deploy oauth-install`
+### Customize Success Page
 
-### Customizing Redirect URL
+The success page shows users how to customize it. Options include:
+- Edit the message in `oauth-callback/index.ts`
+- Redirect to your app
+- Create a custom HTML page
+- Use a custom domain (Supabase Pro)
 
-If you need a custom success page after OAuth:
+## 📊 Database
 
-Edit `supabase/functions/oauth-callback/index.ts`:
-```typescript
-// Instead of returning HTML, redirect to your app
-return new Response(null, {
-  status: 302,
-  headers: {
-    'Location': `https://yourapp.com/oauth-success?portal_id=${portal_id}`
-  }
-});
-```
-
-## 📊 Database Schema
-
-### `oauth_tokens` Table
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| portal_id | INTEGER | HubSpot portal/account ID (unique) |
-| access_token | TEXT | Current OAuth access token |
-| refresh_token | TEXT | OAuth refresh token |
-| expires_at | TIMESTAMP | When access token expires |
-| scopes | TEXT[] | Array of granted scopes |
-| created_at | TIMESTAMP | Record creation time |
-| updated_at | TIMESTAMP | Last update time |
-
-**Indexes:**
-- `portal_id` - Fast lookups by portal
-- `expires_at` - Efficient token expiration queries
+The `oauth_tokens` table stores access/refresh tokens with automatic timestamps and indexes on `portal_id` and `expires_at`.
 
 ## 🧪 Testing
 
-### Test OAuth Flow
 ```bash
-# Open in browser
+# Test OAuth
 open "https://your-project-ref.supabase.co/functions/v1/oauth-install"
-```
 
-### Test API Call
-```bash
-curl "https://your-project-ref.supabase.co/functions/v1/example-api?portal_id=YOUR_PORTAL_ID"
-```
+# Test API
+curl "https://your-project-ref.supabase.co/functions/v1/example-api?portal_id=PORTAL_ID"
 
-### View Function Logs
-```bash
-supabase functions logs oauth-callback --tail
-```
-
-### Check Database
-```bash
-# View stored tokens
-supabase db remote --table oauth_tokens
+# View logs
+supabase functions logs oauth-callback
 ```
 
 ## 🐛 Troubleshooting
 
-### "Missing authorization header" Error
-**Solution:** Functions need `verify_jwt = false` in config.toml. Redeploy functions.
+**Missing authorization header:** Ensure `verify_jwt = false` in `config.toml`
 
-### "Failed to get account information"
-**Solution:** Check that CLIENT_ID and CLIENT_SECRET are correct in Supabase secrets.
+**Failed to get account information:** Check your HubSpot Client ID/Secret
 
-### "Unable to load app information"
-**Solution:** Make sure you ran `hs project deploy` for your HubSpot app.
+**Tokens not refreshing:** `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are auto-set by Supabase
 
-### Tokens not refreshing
-**Solution:** Verify SUPABASE_SERVICE_ROLE_KEY is set correctly.
-
-### CORS errors
-**Solution:** Add OPTIONS handler in your function (see example-api for reference).
+**CORS errors:** See `example-api/index.ts` for OPTIONS handler example
 
 ## 📚 Resources
 
-- [HubSpot OAuth Quickstart](https://github.com/HubSpot/oauth-quickstart-nodejs) - Original quickstart this is based on
-- [HubSpot OAuth Documentation](https://developers.hubspot.com/docs/apps/developer-platform/build-apps/authentication/oauth/working-with-oauth)
-- [Supabase Edge Functions Guide](https://supabase.com/docs/guides/functions)
-- [HubSpot API Reference](https://developers.hubspot.com/docs/api/overview)
-- [Supabase Database Guide](https://supabase.com/docs/guides/database)
+- [HubSpot OAuth Quickstart](https://github.com/HubSpot/oauth-quickstart-nodejs)
+- [HubSpot Project CLI Docs](https://developers.hubspot.com/docs/platform/projects)
+- [HubSpot API Docs](https://developers.hubspot.com/docs/api/overview)
+- [Supabase Edge Functions](https://supabase.com/docs/guides/functions)
 
-## 💡 Examples & Use Cases
+## 💡 Common Use Cases
 
-### Multi-Tenant SaaS
-Store tokens for multiple customers, each with their own portal_id.
+**Multi-tenant SaaS:** Store tokens for multiple customers, each with their own `portal_id`. Your HubSpot project calls this backend to access customer data.
 
-### HubSpot Integrations
-Build bidirectional syncs between HubSpot and other services.
+**Custom CRM Cards:** Your HubSpot project displays custom cards that fetch data via this backend's authenticated API calls.
 
-### CRM Extensions
-Create custom CRM cards and workflows with real-time data.
+**Workflow Actions:** Custom workflow actions in your HubSpot project use this backend to perform authenticated operations.
 
-### Automated Workflows
-Schedule jobs that interact with HubSpot APIs automatically.
-
-## 🤝 Contributing
-
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## ⭐ Show Your Support
-
-If this template helped you, please give it a star! ⭐
+**Scheduled Jobs:** Edge Functions can run on schedules (via cron) to sync data between HubSpot and other services.
 
 ---
 
-**Ready to deploy?** Follow the [Quick Start](#-quick-start-5-minutes) guide above! 🚀
+**Built with ❤️ for the HubSpot developer community**
 

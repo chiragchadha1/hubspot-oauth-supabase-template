@@ -1,11 +1,7 @@
-// Example API endpoint showing how to use the HubSpot client
-// This demonstrates making authenticated HubSpot API calls
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HubSpotClient } from '../_shared/hubspot-client.ts';
 
 serve(async (req: Request) => {
-  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -17,7 +13,6 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Get portal ID from query params
     const url = new URL(req.url);
     const portal_id = parseInt(url.searchParams.get('portal_id') || '');
 
@@ -28,14 +23,12 @@ serve(async (req: Request) => {
       );
     }
 
-    // Initialize HubSpot client
     const hubspot = new HubSpotClient({
       supabaseUrl: Deno.env.get('SUPABASE_URL')!,
       supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       portalId: portal_id,
     });
 
-    // Example: Get contacts (with automatic token refresh if needed)
     const contacts = await hubspot.get('/crm/v3/objects/contacts?limit=10');
 
     return new Response(

@@ -1,11 +1,7 @@
-// OAuth Token Refresh Endpoint
-// Refreshes expired access tokens using refresh token
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 serve(async (req: Request) => {
-  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -17,7 +13,6 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Get portal ID from query params or body
     const url = new URL(req.url);
     let portal_id: number;
 
@@ -31,14 +26,10 @@ serve(async (req: Request) => {
     if (!portal_id || isNaN(portal_id)) {
       return new Response(
         JSON.stringify({ error: 'Valid portal_id is required' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        }
+        { status: 400, headers: { 'Content-Type': 'application/json' }}
       );
     }
 
-    // Get environment variables
     const CLIENT_ID = Deno.env.get('HUBSPOT_CLIENT_ID');
     const CLIENT_SECRET = Deno.env.get('HUBSPOT_CLIENT_SECRET');
     const REDIRECT_URI = Deno.env.get('HUBSPOT_REDIRECT_URI');
@@ -52,10 +43,7 @@ serve(async (req: Request) => {
       );
     }
 
-    // Initialize Supabase client
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    // Get current tokens from database
     const { data: tokenRecord, error: fetchError } = await supabase
       .from('oauth_tokens')
       .select('*')
@@ -69,7 +57,6 @@ serve(async (req: Request) => {
       );
     }
 
-    // Exchange refresh token for new access token
     const tokenResponse = await fetch('https://api.hubapi.com/oauth/v1/token', {
       method: 'POST',
       headers: {
@@ -95,11 +82,8 @@ serve(async (req: Request) => {
 
     const tokenData = await tokenResponse.json();
     const { access_token, refresh_token, expires_in } = tokenData;
-
-    // Calculate new expiration time
     const expires_at = new Date(Date.now() + expires_in * 1000);
 
-    // Update tokens in database
     const { error: updateError } = await supabase
       .from('oauth_tokens')
       .update({
@@ -117,7 +101,6 @@ serve(async (req: Request) => {
       );
     }
 
-    // Return new access token
     return new Response(
       JSON.stringify({
         success: true,

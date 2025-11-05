@@ -356,6 +356,9 @@ verify_jwt = false
 [functions.oauth-callback]
 verify_jwt = false
 
+[functions.index]
+verify_jwt = false
+
 [functions.oauth-refresh]
 verify_jwt = false
 
