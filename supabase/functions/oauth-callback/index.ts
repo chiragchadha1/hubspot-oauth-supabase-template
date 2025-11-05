@@ -1,7 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get('code');
@@ -69,7 +68,7 @@ serve(async (req: Request) => {
     const expires_at = new Date(Date.now() + expires_in * 1000);
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { data, error: dbError } = await supabase
+    const { error: dbError } = await supabase
       .from('oauth_tokens')
       .upsert({
         portal_id: portal_id,
@@ -146,8 +145,9 @@ Your tokens are securely stored and will auto-refresh. Happy coding! 🚀
 
   } catch (error) {
     console.error('OAuth callback error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      `Internal server error: ${error.message}`,
+      `Internal server error: ${errorMessage}`,
       { status: 500 }
     );
   }

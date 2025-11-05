@@ -1,7 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HubSpotClient } from '../_shared/hubspot-client.ts';
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   try {
     const url = new URL(req.url);
     const portal_id = parseInt(url.searchParams.get('portal_id') || '');
@@ -41,7 +40,7 @@ serve(async (req: Request) => {
       }
     } catch (error) {
       console.error('Error fetching contact:', error);
-      contactError = error.message;
+      contactError = error instanceof Error ? error.message : 'Unknown error';
     }
 
     return new Response(
@@ -67,10 +66,11 @@ serve(async (req: Request) => {
 
   } catch (error) {
     console.error('Index page error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({
         error: 'Internal server error',
-        message: error.message,
+        message: errorMessage,
       }),
       {
         status: 500,

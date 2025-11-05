@@ -301,6 +301,15 @@ See `example-api/index.ts` for a full working example.
 └── README.md                       # This file
 ```
 
+### Dependencies
+
+All functions use modern package imports:
+
+- **`npm:@supabase/supabase-js@2`** - Database client from npm
+- **`jsr:@std/http@1`** - Deno standard library from JSR (JavaScript Registry)
+
+No import map needed - Deno 2 handles `npm:` and `jsr:` imports natively.
+
 ### Function Flow
 
 ```
@@ -380,6 +389,9 @@ supabase secrets set REQUIRE_HUBSPOT_SIGNATURE="false"
 
 **⚠️ Security Warning:** Only use development mode for testing. Always enable signature validation in production!
 
+**Verify signature validation is working:**
+See **[HUBSPOT_TESTING.md](HUBSPOT_TESTING.md)** for step-by-step instructions to test signature validation by calling your endpoint from a HubSpot serverless function.
+
 ### Additional Security Options
 
 For specific use cases, you can add additional validation:
@@ -427,7 +439,9 @@ The `oauth_tokens` table stores access/refresh tokens with automatic timestamps 
 
 ## 🧪 Testing
 
-> 📖 **For detailed Postman/curl testing instructions, see [TESTING.md](TESTING.md)**
+> 📖 **Testing Guides:**
+> - **[TESTING.md](TESTING.md)** - Postman/curl testing (with signature validation disabled)
+> - **[HUBSPOT_TESTING.md](HUBSPOT_TESTING.md)** - Test with HubSpot signatures (production validation)
 
 ### Test OAuth Flow
 ```bash

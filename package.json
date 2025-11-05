@@ -41,6 +41,8 @@
     "node": ">=16.0.0"
   },
   "license": "MIT",
-  "author": "Your Name <your@email.com>"
+  "author": "Chirag Chadha <chiragkchadha@gmail.com> (https://chirag.nyc)",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.79.0"
+  }
 }
-

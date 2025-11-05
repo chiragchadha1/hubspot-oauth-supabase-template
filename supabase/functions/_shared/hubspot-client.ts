@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 
 export interface HubSpotClientConfig {
   supabaseUrl: string;
@@ -52,6 +52,10 @@ export class HubSpotClient {
     } else {
       this.accessToken = tokenRecord.access_token;
       this.tokenExpiry = expiresAt;
+    }
+
+    if (!this.accessToken) {
+      throw new Error('Failed to retrieve access token');
     }
 
     return this.accessToken;
@@ -139,12 +143,12 @@ export class HubSpotClient {
     return response;
   }
 
-  async get(endpoint: string): Promise<any> {
+  async get(endpoint: string): Promise<unknown> {
     const response = await this.request(endpoint);
     return response.json();
   }
 
-  async post(endpoint: string, body: any): Promise<any> {
+  async post(endpoint: string, body: unknown): Promise<unknown> {
     const response = await this.request(endpoint, {
       method: 'POST',
       body: JSON.stringify(body),
@@ -152,7 +156,7 @@ export class HubSpotClient {
     return response.json();
   }
 
-  async patch(endpoint: string, body: any): Promise<any> {
+  async patch(endpoint: string, body: unknown): Promise<unknown> {
     const response = await this.request(endpoint, {
       method: 'PATCH',
       body: JSON.stringify(body),
@@ -160,7 +164,7 @@ export class HubSpotClient {
     return response.json();
   }
 
-  async delete(endpoint: string): Promise<any> {
+  async delete(endpoint: string): Promise<unknown> {
     const response = await this.request(endpoint, {
       method: 'DELETE',
     });
