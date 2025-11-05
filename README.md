@@ -60,10 +60,15 @@ This is an **OAuth backend** that handles authentication and token management fo
 - **oauth-callback** - Handles redirect, exchanges code for tokens, shows simple success message
 - **index** - Returns portal info and contact data as JSON
 - **oauth-refresh** - Automatically refreshes expired tokens
-- **example-api** - Demonstrates authenticated HubSpot API calls
+- **example-api** - Example endpoint with signature validation (for HubSpot-originating requests)
 
 ### Utilities
-- **HubSpotClient** - Reusable client with automatic token refresh
+- **HubSpotClient** - Reusable client with **automatic token refresh**
+  - Checks token expiration before every API call
+  - Automatically refreshes expired tokens
+  - Updates database with new tokens
+  - Retries failed requests with fresh token
+- **validateHubSpotSignature** - Request signature validation (v3, v2, v1)
 - Pre-configured CORS and error handling
 - Comprehensive logging for debugging
 
@@ -154,9 +159,14 @@ Via CLI or Dashboard (Edge Functions → Secrets):
 supabase secrets set HUBSPOT_CLIENT_ID="your-client-id"
 supabase secrets set HUBSPOT_CLIENT_SECRET="your-client-secret"
 supabase secrets set HUBSPOT_REDIRECT_URI="https://your-project-ref.supabase.co/functions/v1/oauth-callback"
+
+# Optional: Disable signature validation for development/testing (default: true/enabled)
+# supabase secrets set REQUIRE_HUBSPOT_SIGNATURE="false"
 ```
 
 > **Note:** `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are automatically set by Supabase.
+>
+> **Security:** `REQUIRE_HUBSPOT_SIGNATURE` defaults to `true` (enabled), requiring valid HubSpot signatures. Set to `false` only for development/testing with curl/Postman.
 
 ### 7. Deploy Functions
 
@@ -183,9 +193,21 @@ Based on the [HubSpot OAuth Quickstart](https://github.com/HubSpot/oauth-quickst
 
 ## 📖 Usage
 
+### Automatic Token Refresh
+
+**Tokens refresh automatically!** The `HubSpotClient` handles this for you:
+
+1. ✅ Before every API call, checks if token is expired
+2. ✅ If expired, automatically gets fresh token using refresh token
+3. ✅ Updates database with new tokens
+4. ✅ If API call returns 401, retries once with fresh token
+5. ✅ All happens transparently - you just make API calls!
+
+**No cron jobs or background tasks needed.** Refresh happens on-demand when tokens are used.
+
 ### From Your HubSpot Project
 
-Call the example API from your HubSpot serverless functions or UI extensions:
+Call the example API from your HubSpot serverless functions:
 
 ```javascript
 // In your HubSpot project's serverless function
@@ -193,26 +215,62 @@ const response = await fetch(
   'https://your-project-ref.supabase.co/functions/v1/example-api?portal_id=' + portalId
 );
 const data = await response.json();
+// Tokens automatically refresh if expired!
 ```
+
+**Security:** HubSpot automatically includes signature headers (`X-HubSpot-Signature-V3` and `X-HubSpot-Request-Timestamp`) which are validated by the backend. No additional setup needed!
 
 ### From This Backend (Custom Endpoints)
 
-Create custom Edge Functions that use the `HubSpotClient`:
+Create custom Edge Functions with signature validation:
 
 ```typescript
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HubSpotClient } from '../_shared/hubspot-client.ts';
+import { validateHubSpotSignature } from '../_shared/hubspot-signature.ts';
 
-const hubspot = new HubSpotClient({
-  supabaseUrl: Deno.env.get('SUPABASE_URL')!,
-  supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  portalId: YOUR_PORTAL_ID,
+serve(async (req: Request) => {
+  const bodyText = await req.text();
+  const CLIENT_SECRET = Deno.env.get('HUBSPOT_CLIENT_SECRET');
+
+  // Validate HubSpot signature (supports v3, v2, v1)
+  if (CLIENT_SECRET) {
+    const { valid, version } = await validateHubSpotSignature(req, bodyText, CLIENT_SECRET);
+
+    if (version && !valid) {
+      console.log(`Invalid HubSpot signature (${version})`);
+      return new Response(JSON.stringify({ error: 'Invalid signature' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' }});
+    }
+
+    if (version) {
+      console.log(`Valid HubSpot signature (${version})`);
+    }
+  }
+
+  // Use HubSpotClient for API calls
+  const hubspot = new HubSpotClient({
+    supabaseUrl: Deno.env.get('SUPABASE_URL')!,
+    supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    portalId: YOUR_PORTAL_ID,
+  });
+
+  // Tokens automatically refresh if expired - no extra code needed!
+  const contacts = await hubspot.get('/crm/v3/objects/contacts');
+  return new Response(JSON.stringify(contacts));
 });
+```
 
-// Tokens refresh automatically!
-const contacts = await hubspot.get('/crm/v3/objects/contacts');
-await hubspot.post('/crm/v3/objects/contacts', { properties: {...} });
-await hubspot.patch('/crm/v3/objects/contacts/123', { properties: {...} });
-await hubspot.delete('/crm/v3/objects/contacts/123');
+**How automatic refresh works:**
+```typescript
+// Behind the scenes in HubSpotClient.get():
+async get(endpoint: string) {
+  const accessToken = await this.getAccessToken(); // ← Checks expiration here
+  // If expired, automatically calls refreshToken() and updates DB
+  // Then makes the API call with fresh token
+  const response = await this.request(endpoint);
+  return response.json();
+}
 ```
 
 See `example-api/index.ts` for a full working example.
@@ -233,7 +291,8 @@ See `example-api/index.ts` for a full working example.
 │   │   ├── example-api/            # Example authenticated call
 │   │   │   └── index.ts
 │   │   └── _shared/
-│   │       └── hubspot-client.ts   # Reusable API client
+│   │       ├── hubspot-client.ts    # Reusable API client
+│   │       └── hubspot-signature.ts # Request validation
 │   ├── migrations/
 │   │   └── 20250104000000_create_oauth_tables.sql
 │   └── config.toml                 # Supabase configuration
@@ -277,14 +336,76 @@ See `example-api/index.ts` for a full working example.
 └─────────────┘  (tokens auto-refresh!)
 ```
 
-## 🔒 Security Best Practices
+## 🔒 Security
 
+### HubSpot Request Signature Validation (v3, v2, v1)
+
+HubSpot **automatically sends authentication headers** with every request from serverless functions, webhooks, and UI extensions! The `example-api` validates these using HubSpot's official signature methods.
+
+**Supported versions:**
+- ✅ **v3** (latest) - HMAC SHA-256 with timestamp validation
+- ✅ **v2** - SHA-256 for workflow actions and app cards
+- ✅ **v1** (legacy) - SHA-256 for older webhook formats
+
+**How it works:**
+1. HubSpot sends signature headers with every request
+2. Backend automatically detects signature version
+3. Validates using the appropriate algorithm and your `HUBSPOT_CLIENT_SECRET`
+4. v3 requests older than 5 minutes are automatically rejected
+
+**Version details:**
+
+| Version | Headers | Algorithm | Use Cases |
+|---------|---------|-----------|-----------|
+| v3 | `X-HubSpot-Signature-V3`<br>`X-HubSpot-Request-Timestamp` | HMAC SHA-256<br>`method + uri + body + timestamp` | Modern apps, serverless functions |
+| v2 | `X-HubSpot-Signature`<br>`X-HubSpot-Signature-Version: v2` | SHA-256<br>`secret + method + uri + body` | Workflow actions, app cards |
+| v1 | `X-HubSpot-Signature`<br>`X-HubSpot-Signature-Version: v1` | SHA-256<br>`secret + body` | Legacy webhooks |
+
+**Implementation:**
+The signature validation is **already implemented** in `example-api/index.ts` and supports all 3 versions automatically. See [HubSpot's official docs](https://developers.hubspot.com/docs/apps/developer-platform/build-apps/authentication/request-validation#validating-requests) for full specifications.
+
+**No additional setup required!** The validation uses your existing `HUBSPOT_CLIENT_SECRET`.
+
+### Testing & Development
+
+**Production mode (default):**
+Signature validation is enabled. Only requests from HubSpot with valid signatures are accepted.
+
+**Development mode (for testing):**
+To test endpoints directly (curl, Postman, etc.) without HubSpot signatures:
+
+```bash
+supabase secrets set REQUIRE_HUBSPOT_SIGNATURE="false"
+```
+
+**⚠️ Security Warning:** Only use development mode for testing. Always enable signature validation in production!
+
+### Additional Security Options
+
+For specific use cases, you can add additional validation:
+
+**Portal ID Whitelist:** Restrict to specific customers
+```bash
+supabase secrets set ALLOWED_PORTAL_IDS="12345,67890"
+```
+
+**Referer Check:** For browser-based UI extensions (add to validation logic)
+```typescript
+const referer = req.headers.get('Referer');
+if (!referer?.includes('hubspot.com')) {
+  return new Response('Forbidden', { status: 403 });
+}
+```
+
+### Best Practices
+
+✅ **Request signature validation** - Supports v3, v2, and v1 with automatic detection\
 ✅ **Never commit secrets** - Use environment variables\
 ✅ **Service role key** - Only used in Edge Functions, never client-side\
 ✅ **RLS enabled** - Database access restricted to service role\
 ✅ **HTTPS only** - All OAuth redirects require HTTPS\
-✅ **State parameter** - CSRF protection (enhance in production)\
-✅ **Token rotation** - Tokens automatically refresh before expiration
+✅ **Token rotation** - Tokens automatically refresh before expiration\
+✅ **Rate limiting** - Add rate limiting for production (consider Upstash Redis)
 
 ## 🔧 Configuration
 
@@ -306,15 +427,51 @@ The `oauth_tokens` table stores access/refresh tokens with automatic timestamps 
 
 ## 🧪 Testing
 
+> 📖 **For detailed Postman/curl testing instructions, see [TESTING.md](TESTING.md)**
+
+### Test OAuth Flow
 ```bash
-# Test OAuth
 open "https://your-project-ref.supabase.co/functions/v1/oauth-install"
+```
 
-# Test API
-curl "https://your-project-ref.supabase.co/functions/v1/example-api?portal_id=PORTAL_ID"
+### Test API Endpoint
 
-# View logs
-supabase functions logs oauth-callback
+**Step 1: Complete OAuth first (to get tokens)**
+```bash
+# Install the app to get OAuth tokens stored
+open "https://your-project-ref.supabase.co/functions/v1/oauth-install"
+# Note your portal_id from the success page
+```
+
+**Step 2: From HubSpot (production):**
+Call from your HubSpot serverless functions - signatures are automatically validated.
+
+**Step 3: Direct testing with curl/Postman (development):**
+```bash
+# 1. Disable signature validation
+supabase secrets set REQUIRE_HUBSPOT_SIGNATURE="false"
+supabase functions deploy example-api
+
+# 2. Test with curl (use YOUR portal_id from OAuth)
+curl "https://your-project-ref.supabase.co/functions/v1/example-api?portal_id=YOUR_PORTAL_ID"
+
+# 3. Or use Postman:
+#    GET https://your-project-ref.supabase.co/functions/v1/example-api?portal_id=YOUR_PORTAL_ID
+#    No special headers needed in dev mode
+
+# 4. Re-enable for production
+supabase secrets set REQUIRE_HUBSPOT_SIGNATURE="true"
+supabase functions deploy example-api
+```
+
+**Common errors:**
+- `"No OAuth tokens found for this portal"` → Complete OAuth flow first (Step 1)
+- `"Invalid HubSpot signature"` → Disable validation for testing (see above)
+- `"Valid portal_id is required"` → Add `?portal_id=YOUR_ID` to the URL
+
+### View Logs
+```bash
+supabase functions logs example-api --tail
 ```
 
 ## 🐛 Troubleshooting
