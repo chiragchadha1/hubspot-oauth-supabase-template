@@ -15,24 +15,9 @@
     "url": "https://github.com/yourusername/hubspot-oauth-supabase-template"
   },
   "scripts": {
-    "supabase:login": "supabase login",
-    "supabase:link": "supabase link",
-    "supabase:push": "supabase db push",
-    "deploy:functions": "npm run deploy:oauth-install && npm run deploy:oauth-callback && npm run deploy:index && npm run deploy:oauth-refresh && npm run deploy:example-api",
-    "deploy:oauth-install": "supabase functions deploy oauth-install",
-    "deploy:oauth-callback": "supabase functions deploy oauth-callback",
-    "deploy:index": "supabase functions deploy index",
-    "deploy:oauth-refresh": "supabase functions deploy oauth-refresh",
-    "deploy:example-api": "supabase functions deploy example-api",
-    "logs:oauth-install": "supabase functions logs oauth-install",
-    "logs:oauth-callback": "supabase functions logs oauth-callback",
-    "logs:index": "supabase functions logs index",
-    "logs:oauth-refresh": "supabase functions logs oauth-refresh",
-    "logs:example-api": "supabase functions logs example-api",
-    "logs:all": "supabase functions logs",
-    "test:oauth-flow": "echo 'Open: https://YOUR_PROJECT_REF.supabase.co/functions/v1/oauth-install'",
-    "setup": "npm run supabase:login && npm run supabase:link && npm run supabase:push",
-    "deploy:all": "npm run supabase:push && npm run deploy:functions"
+    "setup": "supabase login && supabase link && supabase db push",
+    "deploy": "supabase db push && supabase functions deploy",
+    "logs": "supabase functions logs"
   },
   "devDependencies": {
     "supabase": "^1.0.0"
