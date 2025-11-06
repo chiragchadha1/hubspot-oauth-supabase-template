@@ -198,13 +198,21 @@ hubspot.fetch('https://YOUR_REF.supabase.co/functions/v1/example-api')
 ```
 
 ### View Logs
-```bash
-# Watch real-time logs
-supabase functions logs example-api --tail
 
-# View specific function logs
-supabase functions logs oauth-callback
+**In Supabase Dashboard:**
+1. Go to your project: `https://supabase.com/dashboard/project/YOUR_PROJECT_REF`
+2. Navigate to **Edge Functions** in the sidebar
+3. Click on a function (e.g., `example-api`)
+4. Click the **Logs** tab to view real-time logs
+5. Use filters to search by time range, status, or content
+
+**View recent logs via CLI:**
+```bash
+# View recent logs (not real-time)
+supabase functions logs example-api
 ```
+
+> **Note:** Real-time log tailing (`--tail`) only works with locally running functions via `supabase functions serve`. For deployed functions, use the Supabase Dashboard for real-time monitoring.
 
 ## 📂 Project Structure
 
@@ -297,8 +305,27 @@ supabase secrets set KEY="value"
 **Solution:** Disable signature validation for development:
 ```bash
 supabase secrets set REQUIRE_HUBSPOT_SIGNATURE="false"
-supabase functions deploy example-api
 ```
+
+**For production testing:** Test your API directly from a HubSpot card or extension:
+```typescript
+// In your HubSpot card
+import { hubspot } from '@hubspot/ui-extensions';
+
+const response = await hubspot.fetch(
+  `https://YOUR_REF.supabase.co/functions/v1/example-api?portalId=${portalId}`
+);
+const data = await response.json();
+// HubSpot automatically includes signatures!
+```
+
+**Before publishing to production:**
+```bash
+# Re-enable signature validation
+supabase secrets set REQUIRE_HUBSPOT_SIGNATURE="true"
+```
+
+> 🔒 **Security Best Practice:** Always enable signature validation (`REQUIRE_HUBSPOT_SIGNATURE="true"`) for production deployments. Only disable it temporarily for local testing with curl/Postman.
 
 ### OAuth callback fails
 **Solution:** Verify redirect URI matches exactly:
@@ -312,6 +339,17 @@ supabase functions deploy example-api
 supabase secrets list
 ```
 
+### Viewing Logs for Debugging
+**Supabase Dashboard (Recommended):**
+1. Go to: `https://supabase.com/dashboard/project/YOUR_REF/functions`
+2. Click on the function you want to debug
+3. View real-time logs with filters and search
+
+**Check for common log messages:**
+- ✅ `Valid HubSpot signature (v3)` - Request authenticated successfully
+- ❌ `Invalid HubSpot signature` - Check your `HUBSPOT_CLIENT_SECRET`
+- ⚠️ `Signature validation DISABLED` - Dev mode active (don't use in production!)
+
 ## 📚 Additional Resources
 
 - [HubSpot OAuth Documentation](https://developers.hubspot.com/docs/api/oauth-quickstart-guide)
@@ -319,10 +357,6 @@ supabase secrets list
 - [Supabase Edge Functions Guide](https://supabase.com/docs/guides/functions)
 - [Supabase CLI Reference](https://supabase.com/docs/reference/cli)
 - [HubSpot Signature Validation](https://developers.hubspot.com/docs/api/webhooks/validating-requests)
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Credits
 
