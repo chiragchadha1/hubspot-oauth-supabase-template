@@ -1,4 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
+/**
+ * OAuth Callback Endpoint
+ *
+ * Handles the OAuth callback from HubSpot after user authorization.
+ * Exchanges the authorization code for access and refresh tokens,
+ * then stores them securely in Supabase.
+ *
+ * This is the REDIRECT_URI configured in your HubSpot app settings.
+ */
+
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 Deno.serve(async (req: Request) => {
   try {

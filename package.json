@@ -10,24 +10,20 @@
     "edge-functions",
     "serverless"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/yourusername/hubspot-oauth-supabase-template"
-  },
-  "scripts": {
-    "setup": "supabase login && supabase link && supabase db push",
-    "deploy": "supabase db push && supabase functions deploy",
-    "logs": "supabase functions logs"
-  },
+  "license": "MIT",
+  "author": "Chirag Chadha <chiragkchadha@gmail.com> (https://chirag.nyc)",
   "devDependencies": {
     "supabase": "^1.0.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chiragchadha1/hubspot-oauth-supabase-template.git"
+  },
+  "scripts": {
+    "setup": "supabase login && supabase link && supabase db push",
+    "deploy": "supabase db push && supabase functions deploy"
+  },
   "engines": {
     "node": ">=16.0.0"
-  },
-  "license": "MIT",
-  "author": "Chirag Chadha <chiragkchadha@gmail.com> (https://chirag.nyc)",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.79.0"
   }
 }

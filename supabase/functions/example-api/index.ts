@@ -1,7 +1,25 @@
+/**
+ * Example API Endpoint
+ *
+ * Demonstrates HubSpot OAuth token storage and signature validation.
+ * This endpoint fetches contacts from HubSpot using stored OAuth tokens.
+ *
+ * HubSpot automatically adds these query parameters:
+ * - portalId: The HubSpot account ID
+ * - userId: The user making the request
+ * - userEmail: The user's email
+ * - appId: Your app ID
+ */
+
 import { HubSpotClient } from '../_shared/hubspot-client.ts';
 import { validateHubSpotSignature } from '../_shared/hubspot-signature.ts';
 
+interface HubSpotListResponse {
+  results: unknown[];
+}
+
 Deno.serve(async (req: Request) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -21,47 +39,43 @@ Deno.serve(async (req: Request) => {
     if (CLIENT_SECRET && REQUIRE_SIGNATURE) {
       const { valid, version } = await validateHubSpotSignature(req, bodyText, CLIENT_SECRET);
 
-      // If no signature headers found, reject the request
       if (!version) {
-        console.log('❌ No HubSpot signature found - request rejected');
         return new Response(
           JSON.stringify({ error: 'HubSpot signature required. For development/testing, set REQUIRE_HUBSPOT_SIGNATURE=false' }),
           { status: 401, headers: { 'Content-Type': 'application/json' }}
         );
       }
 
-      // If signature found but invalid, reject the request
       if (!valid) {
-        console.log(`❌ Invalid HubSpot signature (${version})`);
         return new Response(
           JSON.stringify({ error: 'Invalid HubSpot signature' }),
           { status: 401, headers: { 'Content-Type': 'application/json' }}
         );
       }
 
-      // Valid signature
       console.log(`✅ Valid HubSpot signature (${version})`);
-    } else if (!REQUIRE_SIGNATURE) {
-      console.log('⚠️  Signature validation DISABLED (dev mode)');
     }
 
+    // Extract portalId from query parameters (HubSpot adds this automatically)
     const url = new URL(req.url);
-    const portal_id = parseInt(url.searchParams.get('portal_id') || '');
+    const portal_id = parseInt(url.searchParams.get('portalId') || '');
 
     if (!portal_id || isNaN(portal_id)) {
       return new Response(
-        JSON.stringify({ error: 'Valid portal_id is required' }),
+        JSON.stringify({ error: 'Valid portalId is required' }),
         { status: 400, headers: { 'Content-Type': 'application/json' }}
       );
     }
 
+    // Initialize HubSpot client with stored OAuth tokens
     const hubspot = new HubSpotClient({
       supabaseUrl: Deno.env.get('SUPABASE_URL')!,
       supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       portalId: portal_id,
     });
 
-    const contacts = await hubspot.get('/crm/v3/objects/contacts?limit=10');
+    // Example: Fetch contacts from HubSpot
+    const contacts = await hubspot.get('/crm/v3/objects/contacts?limit=10') as HubSpotListResponse;
 
     return new Response(
       JSON.stringify({
@@ -90,4 +104,3 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
-

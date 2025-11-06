@@ -1,4 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
+/**
+ * OAuth Token Refresh Endpoint
+ *
+ * Manually refreshes OAuth tokens for a given portal.
+ * Note: The HubSpotClient automatically refreshes tokens when needed,
+ * so this endpoint is typically only needed for testing or manual refresh.
+ *
+ * Usage: GET/POST /oauth-refresh?portal_id=12345
+ */
+
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {

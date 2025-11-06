@@ -1,4 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
+/**
+ * HubSpot API Client with OAuth Token Management
+ *
+ * Automatically handles OAuth token retrieval, caching, and refresh.
+ * Stores tokens in Supabase and refreshes them when expired.
+ */
+
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 export interface HubSpotClientConfig {
   supabaseUrl: string;
@@ -6,6 +13,9 @@ export interface HubSpotClientConfig {
   portalId: number;
 }
 
+/**
+ * HubSpot API client that manages OAuth tokens automatically
+ */
 export class HubSpotClient {
   private supabase;
   private portalId: number;
@@ -17,11 +27,16 @@ export class HubSpotClient {
     this.portalId = config.portalId;
   }
 
+  /**
+   * Gets a valid access token, refreshing if necessary
+   */
   private async getAccessToken(): Promise<string> {
+    // Return cached token if still valid
     if (this.accessToken && this.tokenExpiry && new Date() < this.tokenExpiry) {
       return this.accessToken;
     }
 
+    // Fetch token from database
     const { data: tokenRecord, error } = await this.supabase
       .from('oauth_tokens')
       .select('*')
@@ -35,6 +50,7 @@ export class HubSpotClient {
     const expiresAt = new Date(tokenRecord.expires_at);
     const now = new Date();
 
+    // Refresh if expired
     if (now >= expiresAt) {
       await this.refreshToken();
       const { data: newTokenRecord } = await this.supabase
@@ -61,6 +77,9 @@ export class HubSpotClient {
     return this.accessToken;
   }
 
+  /**
+   * Refreshes the OAuth token using the refresh token
+   */
   private async refreshToken(): Promise<void> {
     const CLIENT_ID = Deno.env.get('HUBSPOT_CLIENT_ID');
     const CLIENT_SECRET = Deno.env.get('HUBSPOT_CLIENT_SECRET');
@@ -101,6 +120,7 @@ export class HubSpotClient {
     const data = await response.json();
     const expiresAt = new Date(Date.now() + data.expires_in * 1000);
 
+    // Update tokens in database
     await this.supabase
       .from('oauth_tokens')
       .update({
@@ -114,6 +134,9 @@ export class HubSpotClient {
     this.tokenExpiry = expiresAt;
   }
 
+  /**
+   * Makes an authenticated request to the HubSpot API
+   */
   async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
     const accessToken = await this.getAccessToken();
 
@@ -132,6 +155,7 @@ export class HubSpotClient {
       headers,
     });
 
+    // Retry once with refreshed token on 401
     if (response.status === 401) {
       await this.refreshToken();
       const newAccessToken = await this.getAccessToken();
@@ -143,11 +167,17 @@ export class HubSpotClient {
     return response;
   }
 
+  /**
+   * Performs a GET request to the HubSpot API
+   */
   async get(endpoint: string): Promise<unknown> {
     const response = await this.request(endpoint);
     return response.json();
   }
 
+  /**
+   * Performs a POST request to the HubSpot API
+   */
   async post(endpoint: string, body: unknown): Promise<unknown> {
     const response = await this.request(endpoint, {
       method: 'POST',
@@ -156,6 +186,9 @@ export class HubSpotClient {
     return response.json();
   }
 
+  /**
+   * Performs a PATCH request to the HubSpot API
+   */
   async patch(endpoint: string, body: unknown): Promise<unknown> {
     const response = await this.request(endpoint, {
       method: 'PATCH',
@@ -164,6 +197,9 @@ export class HubSpotClient {
     return response.json();
   }
 
+  /**
+   * Performs a DELETE request to the HubSpot API
+   */
   async delete(endpoint: string): Promise<unknown> {
     const response = await this.request(endpoint, {
       method: 'DELETE',
@@ -171,4 +207,3 @@ export class HubSpotClient {
     return response.json();
   }
 }
-

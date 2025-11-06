@@ -1,3 +1,12 @@
+/**
+ * OAuth Installation Endpoint
+ *
+ * Redirects users to HubSpot's OAuth authorization page.
+ * After authorization, HubSpot will redirect back to oauth-callback.
+ *
+ * Usage: Direct users to this endpoint to install your app
+ */
+
 Deno.serve((req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
